@@ -1,0 +1,7 @@
+defaults:
+  - dla_eval
+  - _self_
+
+val:
+  data_dir: ${hydra:runtime.cwd}/data/dla_small_dataset
+  index_dir: ${hydra:runtime.cwd}/data/indexes/dla_small_dataset

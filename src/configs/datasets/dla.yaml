@@ -1,0 +1,19 @@
+train:
+  _target_: src.datasets.DLADataset
+  split: train
+  data_dir: ${hydra:runtime.cwd}/data/dla_dataset
+  index_dir: ${hydra:runtime.cwd}/data/indexes/dla_dataset
+  audio_only: true
+  required_sources: true
+  force_rebuild_index: false
+  instance_transforms: ${transforms.instance_transforms.train}
+
+val:
+  _target_: src.datasets.DLADataset
+  split: val
+  data_dir: ${datasets.train.data_dir}
+  index_dir: ${datasets.train.index_dir}
+  audio_only: ${datasets.train.audio_only}
+  required_sources: true
+  force_rebuild_index: ${datasets.train.force_rebuild_index}
+  instance_transforms: ${transforms.instance_transforms.inference}
