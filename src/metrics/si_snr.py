@@ -1,7 +1,7 @@
 import torch
 
 from src.metrics.base_metric import BaseMetric
-from src.metrics.utils import pit_si_snr, si_snr
+from src.metrics.utils import align_sources, si_snr
 
 
 class SI_SNR(BaseMetric):
@@ -25,11 +25,8 @@ class SI_SNR(BaseMetric):
 
             pred = pred[..., :length]
             target = target[..., :length]
-
-            if self.pit:
-                score, best_permutation = pit_si_snr(pred, target)
-            else:
-                score = si_snr(pred, target)
+            pred = align_sources(pred, target, pit=self.pit)
+            score = si_snr(pred, target)
 
             scores.append(score)
 
@@ -61,12 +58,9 @@ class SI_SNRi(BaseMetric):
 
             pred = pred[..., :length]
             target = target[..., :length]
+            pred = align_sources(pred, target, pit=self.pit)
             mix = mix[..., :length].unsqueeze(0).expand_as(pred)
-
-            if self.pit:
-                score_pred, best_permutation = pit_si_snr(pred, target)
-            else:
-                score_pred = si_snr(pred, target)
+            score_pred = si_snr(pred, target)
             score_mix = si_snr(mix, target)
 
             scores.append(score_pred - score_mix)

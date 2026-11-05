@@ -1,13 +1,13 @@
 import torch
 
 from src.metrics.base_metric import BaseMetric
-from src.metrics.utils import pit_sdr, sdr
+from src.metrics.utils import align_sources, sdr
 
 
 class SDR(BaseMetric):
     def __init__(self, pit=False, *args, **kwargs):
         """
-        Enable best-permutation matching with pit=True; otherwise keep source order.
+        Enable SI-SNR-based matching with pit=True; otherwise keep source order.
         """
         super().__init__(*args, **kwargs)
         self.pit = pit
@@ -25,11 +25,8 @@ class SDR(BaseMetric):
 
             pred = pred[..., :length]
             target = target[..., :length]
-
-            if self.pit:
-                score, best_permutation = pit_sdr(pred, target)
-            else:
-                score = sdr(pred, target)
+            pred = align_sources(pred, target, pit=self.pit)
+            score = sdr(pred, target)
 
             scores.append(score)
 
@@ -39,7 +36,7 @@ class SDR(BaseMetric):
 class SDRi(BaseMetric):
     def __init__(self, pit=False, *args, **kwargs):
         """
-        Enable PIT for predictions with pit=True; mixture scores use fixed order.
+        Enable SI-SNR-based matching with pit=True; mixture scores use fixed order.
         """
         super().__init__(*args, **kwargs)
         self.pit = pit
@@ -61,12 +58,9 @@ class SDRi(BaseMetric):
 
             pred = pred[..., :length]
             target = target[..., :length]
+            pred = align_sources(pred, target, pit=self.pit)
             mix = mix[..., :length].unsqueeze(0).expand_as(pred)
-
-            if self.pit:
-                score_pred, best_permutation = pit_sdr(pred, target)
-            else:
-                score_pred = sdr(pred, target)
+            score_pred = sdr(pred, target)
             score_mix = sdr(mix, target)
 
             scores.append(score_pred - score_mix)

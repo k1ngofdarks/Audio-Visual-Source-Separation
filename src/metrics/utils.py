@@ -39,33 +39,22 @@ def pit_si_snr(
     return scores[index], perms[index]
 
 
+def align_sources(
+    preds: torch.Tensor, target: torch.Tensor, pit: bool = False
+) -> torch.Tensor:
+    """Align predictions [S, T] to reference order using mean SI-SNR.
+
+    Inputs must already exclude padding. With pit=False, keep the original
+    order. References stay unchanged; reordered predictions retain gradients.
+    """
+    if pit:
+        _, permutation = pit_si_snr(preds, target)
+        preds = preds[list(permutation)]
+    return preds
+
+
 def sdr(preds: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """
     Return SDR in dB for matching tensors (..., T), with output shape (...,).
     """
     return signal_distortion_ratio(preds, target)
-
-
-def pit_sdr(
-    preds: torch.Tensor, target: torch.Tensor
-) -> tuple[torch.Tensor, tuple[int, ...]]:
-    """
-    Find the permutation with the highest mean SDR for one example [S, T].
-
-    Inputs must already exclude padding. Returns differentiable scores [S]
-    in target order and a tuple perm: preds[list(perm)] matches target.
-    """
-    S = preds.shape[0]
-
-    perms = list(permutations(range(S)))
-    sdr_values = []
-    for perm in perms:
-        permuted_preds = preds[list(perm)]
-        sdr_value = sdr(permuted_preds, target)
-        sdr_values.append(sdr_value)
-
-    scores = torch.stack(sdr_values)
-    index = scores.mean(dim=1).argmax()
-
-    index = index.item()
-    return scores[index], perms[index]
