@@ -1,7 +1,9 @@
-import numpy as np
-import soundfile as sf
 import json
 from pathlib import Path
+
+import numpy as np
+import soundfile as sf
+
 from src.datasets.base_dataset import BaseDataset
 from src.utils.io_utils import ROOT_PATH, read_json, write_json
 
@@ -9,7 +11,17 @@ from src.utils.io_utils import ROOT_PATH, read_json, write_json
 class DLADataset(BaseDataset):
     """Index the DLA split layout and reuse shared audio/video loading."""
 
-    def __init__(self, split, data_dir=None, index_dir=None, audio_only=False, force_rebuild_index=False, required_sources=None, *args, **kwargs):
+    def __init__(
+        self,
+        split,
+        data_dir=None,
+        index_dir=None,
+        audio_only=False,
+        force_rebuild_index=False,
+        required_sources=None,
+        *args,
+        **kwargs,
+    ):
         """Prepare a split index and initialize the shared dataset.
 
         Args:
@@ -34,10 +46,19 @@ class DLADataset(BaseDataset):
         self._index_dir = Path(index_dir)
         self._split = split
         self._audio_only = audio_only
-        self._required_sources = split in ("train", "val") if required_sources is None else required_sources
-        
+        self._required_sources = (
+            split in ("train", "val") if required_sources is None else required_sources
+        )
+
         index = self._get_or_prepare_index(force_rebuild_index=force_rebuild_index)
-        super().__init__(index, data_dir=self._data_dir, audio_only=self._audio_only, required_sources=self._required_sources, *args, **kwargs)
+        super().__init__(
+            index,
+            data_dir=self._data_dir,
+            audio_only=self._audio_only,
+            required_sources=self._required_sources,
+            *args,
+            **kwargs,
+        )
 
     def _get_or_prepare_index(self, force_rebuild_index: bool):
         """Read the cache or build, validate, and save a full split index.
@@ -57,7 +78,6 @@ class DLADataset(BaseDataset):
                 json.dump(index, f, indent=2)
         return index
 
-
     def _create_index(self):
         """Match mixtures to sources and mouth crops using names and WAV headers.
 
@@ -66,30 +86,46 @@ class DLADataset(BaseDataset):
                 sources. audio_len is in seconds; num_samples is per channel.
         """
         index = []
-    
+
         mix_dir = self._data_dir / "audio" / self._split / "mix"
         for mix_path in sorted(mix_dir.glob("*.wav")):
-            s1_path = self._data_dir / "audio" / self._split / "s1" / mix_path.name
-            s2_path = self._data_dir / "audio" / self._split / "s2" / mix_path.name
-            s1_path = s1_path if s1_path.is_file() else None
-            s2_path = s2_path if s2_path.is_file() else None
+            source_ids = mix_path.stem.split("_")
 
-            first_id, second_id = mix_path.stem.split("_")
-            mouth1_path = self._data_dir / "mouths" / f"{first_id}.npz"
-            mouth2_path = self._data_dir / "mouths" / f"{second_id}.npz"
+            mouth_paths = []
+            source_paths = []
+
+            for id, source_id in enumerate(source_ids, start=1):
+                mouth_path = self._data_dir / "mouths" / f"{source_id}.npz"
+                s_path = (
+                    self._data_dir / "audio" / self._split / f"s{id}" / mix_path.name
+                )
+                s_path = s_path if s_path.is_file() else None
+
+                mounth_path = (
+                    mouth_path.relative_to(self._data_dir).as_posix()
+                    if mouth_path.is_file()
+                    else None
+                )
+                mouth_paths.append(mounth_path)
+                s_path = (
+                    s_path.relative_to(self._data_dir).as_posix()
+                    if s_path is not None
+                    else None
+                )
+                source_paths.append(s_path)
 
             audio_info = sf.info(mix_path)
 
-            index.append({
-                "id": mix_path.stem,
-                "mix_path": mix_path.relative_to(self._data_dir).as_posix(),
-                "s1_path": s1_path.relative_to(self._data_dir).as_posix() if s1_path is not None else None,
-                "s2_path": s2_path.relative_to(self._data_dir).as_posix() if s2_path is not None else None,
-                "mouth1_path": mouth1_path.relative_to(self._data_dir).as_posix(),
-                "mouth2_path": mouth2_path.relative_to(self._data_dir).as_posix(),
-                "sample_rate": audio_info.samplerate,
-                "num_samples": audio_info.frames,
-                "audio_len": audio_info.duration
-            })
+            index.append(
+                {
+                    "id": mix_path.stem,
+                    "mix_path": mix_path.relative_to(self._data_dir).as_posix(),
+                    "source_paths": source_paths,
+                    "mouth_paths": mouth_paths,
+                    "sample_rate": audio_info.samplerate,
+                    "num_samples": audio_info.frames,
+                    "audio_len": audio_info.duration,
+                }
+            )
 
         return index

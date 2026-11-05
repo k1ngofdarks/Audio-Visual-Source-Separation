@@ -3,9 +3,9 @@ import random
 from pathlib import Path
 from typing import List
 
-import torch
-import soundfile as sf
 import numpy as np
+import soundfile as sf
+import torch
 from torch.utils.data import Dataset
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,14 @@ class BaseDataset(Dataset):
     """
 
     def __init__(
-        self, index, data_dir, audio_only=False, required_sources=True, limit=None, shuffle_index=False, instance_transforms=None
+        self,
+        index,
+        data_dir,
+        audio_only=False,
+        required_sources=True,
+        limit=None,
+        shuffle_index=False,
+        instance_transforms=None,
     ):
         """
         Args:
@@ -68,25 +75,30 @@ class BaseDataset(Dataset):
         id = data_dict["id"]
 
         mix_path = self._data_dir / data_dict["mix_path"]
-        s1_path = self._data_dir / data_dict["s1_path"] if data_dict["s1_path"] is not None else None
-        s2_path = self._data_dir / data_dict["s2_path"] if data_dict["s2_path"] is not None else None
-        mouth1_path = self._data_dir / data_dict["mouth1_path"] if data_dict["mouth1_path"] is not None else None
-        mouth2_path = self._data_dir / data_dict["mouth2_path"] if data_dict["mouth2_path"] is not None else None
+        source_paths = [
+            self._data_dir / path if path is not None else None
+            for path in data_dict["source_paths"]
+        ]
+        mouth_paths = [
+            self._data_dir / path if path is not None else None
+            for path in data_dict["mouth_paths"]
+        ]
 
         sample_rate = data_dict["sample_rate"]
         num_samples = data_dict["num_samples"]
         audio_len = data_dict["audio_len"]
 
         instance_data = {
-            "id": id, 
+            "id": id,
             "mix_audio": self.load_audio(mix_path),
-            "s1_audio": self.load_audio(s1_path), 
-            "s2_audio": self.load_audio(s2_path), 
-            "mouth1_video": self.load_video(mouth1_path) if not self._audio_only else None,
-            "mouth2_video": self.load_video(mouth2_path) if not self._audio_only else None,
-            "sample_rate": sample_rate, 
-            "num_samples": num_samples, 
-            "audio_len": audio_len
+            "source_audios": [self.load_audio(s_path) for s_path in source_paths],
+            "mouth_videos": [
+                self.load_video(m_path) if not self._audio_only else None
+                for m_path in mouth_paths
+            ],
+            "sample_rate": sample_rate,
+            "num_samples": num_samples,
+            "audio_len": audio_len,
         }
 
         instance_data = self.preprocess_data(instance_data)
@@ -112,7 +124,7 @@ class BaseDataset(Dataset):
             return None
         if not audio_path.is_file():
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
-        
+
         audio, _ = sf.read(audio_path, dtype="float32")
         audio = torch.from_numpy(audio)
         return audio
@@ -131,12 +143,12 @@ class BaseDataset(Dataset):
             return None
         if not video_path.is_file():
             raise FileNotFoundError(f"Video file not found: {video_path}")
-        
+
         with np.load(video_path, allow_pickle=False) as archive:
             video = torch.from_numpy(archive["data"])
 
         return video
-    
+
     def preprocess_data(self, instance_data):
         """
         Preprocess data with instance transforms.
@@ -172,45 +184,65 @@ class BaseDataset(Dataset):
         pass
 
     def _assert_index_is_valid(self, index):
-            """
-            Check required fields, file availability, and complete source pairs.
+        """
+        Check required fields, file availability, and complete source pairs.
 
-            Sources are mandatory when required_sources=True; video files are
-            checked only when audio_only=False. Does not load audio or video.
-    
-            Args:
-                index (list[dict]): list, containing dict for each element of
-                    the dataset. The dict has required metadata information.
-            """
-    
-            assert index, f"No samples found in {self._data_dir}"
-    
-            required_fields = (
-                "id", "mix_path", "s1_path", "s2_path", "mouth1_path", "mouth2_path",
-                "sample_rate", "num_samples", "audio_len"
-            )
-            for entry in index:
-                for field in required_fields:
-                    assert field in entry, f"Each dataset item should include field '{field}'"
-    
-                sample_id = entry["id"]
-                assert entry["mix_path"], f"{sample_id}: mix_path must be provided"
-                assert (self._data_dir / entry["mix_path"]).is_file(), (f"{sample_id}: mix file does not exist")
-    
-                s1_path, s2_path = entry["s1_path"], entry["s2_path"]
-                assert (s1_path is None) == (s2_path is None), (f"{sample_id}: both sources must be provided or both absent")
-                
-                if self._required_sources:
-                    assert s1_path is not None and s2_path is not None, (f"{sample_id}: sources are required")
-    
-                for field in ("s1_path", "s2_path"):
-                    if entry[field] is not None:
-                        assert entry[field] and (self._data_dir / entry[field]).is_file(), (f"{sample_id}: {field} file does not exist")
-    
-                if not self._audio_only:
-                    for field in ("mouth1_path", "mouth2_path"):
-                        assert entry[field] and (self._data_dir / entry[field]).is_file(), (f"{sample_id}: {field} file does not exist")
-    
+        Sources are mandatory when required_sources=True; video files are
+        checked only when audio_only=False. Does not load audio or video.
+
+        Args:
+            index (list[dict]): list, containing dict for each element of
+                the dataset. The dict has required metadata information.
+        """
+
+        assert index, f"No samples found in {self._data_dir}"
+
+        required_fields = (
+            "id",
+            "mix_path",
+            "source_paths",
+            "mouth_paths",
+            "sample_rate",
+            "num_samples",
+            "audio_len",
+        )
+        for entry in index:
+            for field in required_fields:
+                assert (
+                    field in entry
+                ), f"Each dataset item should include field '{field}'"
+
+            sample_id = entry["id"]
+            assert entry["mix_path"], f"{sample_id}: mix_path must be provided"
+            assert (
+                self._data_dir / entry["mix_path"]
+            ).is_file(), f"{sample_id}: mix file does not exist"
+
+            s_paths = entry["source_paths"]
+            m_paths = entry["mouth_paths"]
+
+            assert isinstance(s_paths, list) and isinstance(m_paths, list)
+            assert len(s_paths) > 0 and len(s_paths) == len(
+                m_paths
+            ), f"{sample_id}: sources and mouths must have equal nonzero lengths"
+
+            if not (all(s_paths) == any(s_paths)):
+                assert False, "All source paths must be all None or all provided"
+
+            for s_path in s_paths:
+                if s_path is not None:
+                    assert (
+                        self._data_dir / s_path
+                    ).is_file(), f"{sample_id}: source file does not exist"
+
+            if self._required_sources:
+                assert all(s_paths), "All sources are required"
+
+            if not self._audio_only:
+                for mouth_path in m_paths:
+                    assert (
+                        mouth_path and (self._data_dir / mouth_path).is_file()
+                    ), f"{sample_id}: mouth file does not exist"
 
     @staticmethod
     def _sort_index(index):
