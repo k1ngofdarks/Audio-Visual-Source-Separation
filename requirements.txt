@@ -8,6 +8,7 @@ transformers==5.4.0
 numpy==2.1.3
 soundfile
 pesq
+pystoi
 tqdm
 matplotlib
 pandas
