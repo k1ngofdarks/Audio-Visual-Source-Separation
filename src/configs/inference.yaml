@@ -1,10 +1,11 @@
 defaults:
   - model: baseline
-  - metrics: example
+  - metrics: separation
   - datasets: dla_small_eval
   - dataloader: example
   - transforms: none
   - _self_
+pit: ${datasets.val.audio_only}
 inferencer:
   device_tensors: ["data_object", "labels"] # which tensors should be on device (ex. GPU)
   device: auto # device name or "auto"

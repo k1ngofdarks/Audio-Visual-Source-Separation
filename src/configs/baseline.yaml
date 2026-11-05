@@ -1,11 +1,12 @@
 defaults:
   - model: baseline
   - writer: wandb
-  - metrics: example
+  - metrics: separation
   - datasets: dla_small
   - dataloader: example
   - transforms: none
   - _self_
+pit: ${datasets.train.audio_only}
 optimizer:
   _target_: torch.optim.Adam
   lr: 3e-4
@@ -25,7 +26,7 @@ trainer:
   from_pretrained: null # null or path to the checkpoint dir in the HF format
   device: auto # device name or "auto"
   override: False # if True, will override the previous run with the same name
-  monitor: "max val_MulticlassAccuracy" # "off" or "max/min metric_name", i.e. our goal is to maximize/minimize metric
+  monitor: "max val_SI_SNRi" # "off" or "max/min metric_name", i.e. our goal is to maximize/minimize metric
   save_period: 5 # checkpoint each save_period epochs in addition to the best epoch
   early_stop: ${trainer.n_epochs} # epochs for early stopping
   save_dir: "saved"

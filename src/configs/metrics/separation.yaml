@@ -1,0 +1,27 @@
+train:
+  - _target_: src.metrics.SI_SNR
+    name: SI_SNR
+    pit: ${pit}
+  - _target_: src.metrics.SI_SNRi
+    name: SI_SNRi
+    pit: ${pit}
+
+inference:
+  - _target_: src.metrics.SI_SNR
+    name: SI_SNR
+    pit: ${pit}
+  - _target_: src.metrics.SI_SNRi
+    name: SI_SNRi
+    pit: ${pit}
+  - _target_: src.metrics.SDR
+    name: SDR
+    pit: ${pit}
+  - _target_: src.metrics.SDRi
+    name: SDRi
+    pit: ${pit}
+  - _target_: src.metrics.PESQ
+    name: PESQ
+    pit: ${pit}
+  - _target_: src.metrics.STOI
+    name: STOI
+    pit: ${pit}
