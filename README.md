@@ -18,9 +18,6 @@
 <a href="https://github.com/Blinorot/pytorch_project_template/blob/main/LICENSE">
    <img src=https://img.shields.io/badge/license-MIT-blue.svg>
 </a>
-<a href="https://github.com/Blinorot/pytorch_project_template/blob/main/CITATION.cff">
-   <img src="https://img.shields.io/badge/cite-this%20repo-purple">
-</a>
 </p>
 
 ## About
