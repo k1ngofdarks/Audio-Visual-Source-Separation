@@ -149,6 +149,13 @@ class BaseDataset(Dataset):
 
         return video
 
+    def _apply_transform(self, transform, value):
+        if value is None:
+            return None
+        if isinstance(value, list):
+            return [self._apply_transform(transform, item) for item in value]
+        return transform(value)
+
     def preprocess_data(self, instance_data):
         """
         Preprocess data with instance transforms.
@@ -165,9 +172,10 @@ class BaseDataset(Dataset):
         """
         if self.instance_transforms is not None:
             for transform_name in self.instance_transforms.keys():
-                instance_data[transform_name] = self.instance_transforms[
-                    transform_name
-                ](instance_data[transform_name])
+                instance_data[transform_name] = self._apply_transform(
+                    self.instance_transforms[transform_name],
+                    instance_data[transform_name],
+                )
         return instance_data
 
     @staticmethod
