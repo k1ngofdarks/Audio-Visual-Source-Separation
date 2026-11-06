@@ -1,0 +1,12 @@
+train:
+  mouth_videos:
+    _target_: src.transforms.VideoNormalize
+    output_size: [88, 88]
+    mean: 0.421
+    std: 0.165
+inference:
+  mouth_videos:
+    _target_: src.transforms.VideoNormalize
+    output_size: [88, 88]
+    mean: 0.421
+    std: 0.165

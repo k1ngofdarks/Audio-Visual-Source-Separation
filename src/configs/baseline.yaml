@@ -4,7 +4,7 @@ defaults:
   - metrics: separation
   - datasets: dla_small
   - dataloader: example
-  - transforms: none
+  - transforms: default
   - _self_
 pit: ${datasets.train.audio_only}
 optimizer:
