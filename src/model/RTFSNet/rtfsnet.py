@@ -1,6 +1,7 @@
 from huggingface_hub.dataclasses import strict
 from transformers import PreTrainedConfig, PreTrainedModel
 
+from src.model.RTFSNet.audio_encoder import AudioEncoder
 from src.model.video_encoder.lipreading_model import LipreadingConfig, LipreadingModel
 
 
@@ -8,15 +9,21 @@ from src.model.video_encoder.lipreading_model import LipreadingConfig, Lipreadin
 class RTFSNetConfig(PreTrainedConfig):
     model_type = "rtfsnet"
 
-    def __init__(
-        self,
-        video_encoder_name_or_path="dla-project/lipreading",
-        freeze_video_encoder=True,
-        **kwargs,
-    ):
+    def __init__(self, video_encoder=None, audio_encoder=None, **kwargs):
         super().__init__(**kwargs)
-        self.video_encoder_name_or_path = video_encoder_name_or_path
-        self.freeze_video_encoder = freeze_video_encoder
+
+        self.video_encoder = {
+            "name_or_path": "dla-project/lipreading",
+            "freeze": True,
+            **(video_encoder or {}),
+        }
+        self.audio_encoder = {
+            "n_fft": 256,
+            "hop_length": 128,
+            "win_length": 256,
+            "out_channels": 256,
+            **(audio_encoder or {}),
+        }
 
 
 class RTFSNet(PreTrainedModel):
@@ -32,7 +39,7 @@ class RTFSNet(PreTrainedModel):
 
         self.video_encoder = LipreadingModel(LipreadingConfig())
 
-        self.audio_encoder = ...
+        self.audio_encoder = AudioEncoder(**self.config.audio_encoder)
         self.separation_net = ...
         self.audio_decoder = ...
 
@@ -40,17 +47,17 @@ class RTFSNet(PreTrainedModel):
 
         if not next(self.video_encoder.parameters()).is_meta:
             pretrained = LipreadingModel.from_pretrained(
-                config.video_encoder_name_or_path
+                self.config.video_encoder["name_or_path"]
             )
             self.video_encoder.load_state_dict(pretrained.state_dict())
 
-        if config.freeze_video_encoder:
+        if self.config.video_encoder["freeze"]:
             self.video_encoder.requires_grad_(False)
             self.video_encoder.eval()
 
     def train(self, mode=True):
         super().train(mode)
-        if self.config.freeze_video_encoder:
+        if self.config.video_encoder["freeze"]:
             self.video_encoder.requires_grad_(False)
             self.video_encoder.eval()
         return self
